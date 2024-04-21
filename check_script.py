@@ -1,10 +1,33 @@
+"""
+Pi Attendance System Script
+
+This script, running on a Raspberry Pi interfaces with Firebase 
+to manage and track student attendance. It complements the Flutter app by using Bluetooth to detect student devices 
+that connect via the app, verifying attendance based on the duration of connectivity, and updating the Firebase 
+database with attendance records.
+
+Key Functionalities:
+1. Bluetooth Device Scanning: Scans for Bluetooth devices that are paired or known, specifically looking for 
+   connections established via the Flutter app. This ensures that only devices using the app and authorized 
+   for attendance tracking are considered.
+2. Attendance Verification: Checks the connection time against scheduled class times from Firebase, marking 
+   students as present if their devices are connected for a required duration during class times.
+3. Firebase Integration: Fetches and updates student and module data, including schedules, registered device 
+   names, and attendance records. This allows for a seamless data flow between the Raspberry Pi script and the 
+   Flutter app.
+4. Dynamic Attendance Updates: Calculates and updates the total number of present students per module at 
+   regular intervals, ensuring that attendance data is accurate and up-to-date.
+5. Real-Time Operation: Runs continuously with periodic checks every minute to update attendance and manage 
+   device connections throughout the school day.
+"""
+
 import firebase_admin
 from firebase_admin import credentials, db
 import datetime
 import subprocess
 import time
 
-# Initialize Firebase Admin SDK
+
 cred = credentials.Certificate('/home/patrick/Downloads/final-year-project-1-cbc96-firebase-adminsdk-qjyom-79a3c97e91.json')
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://final-year-project-1-cbc96-default-rtdb.firebaseio.com'
