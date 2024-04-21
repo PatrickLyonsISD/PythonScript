@@ -3,7 +3,6 @@ from firebase_admin import credentials, db
 import datetime
 import subprocess
 import time
-import sys
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate('/home/patrick/Downloads/final-year-project-1-cbc96-firebase-adminsdk-qjyom-79a3c97e91.json')
@@ -59,31 +58,26 @@ def get_current_class_and_end_time(student_year):
                 end_time = datetime.datetime.strptime(times['endTime'], "%H:%M").time()
                 if start_time <= now.time() <= end_time:
                     attendance_time = int(times.get('attendanceTime', 0))
-                    # Return module_id here instead of module_info['name']
                     return module_id, attendance_time, end_time
     return None, 0, None
 
 
 def mark_student_present(uuid, module_id):
     today_date = datetime.date.today().isoformat()
-    # Ensure this fetches the correct module ID
     module_ref = db.reference(f"/modules/{module_id}")
     module_info = module_ref.get()
     if module_info:
         module_name = module_info.get("name", "Unknown Module")
-        # Mark attendance with module name for readability
         attendance_ref = db.reference(f"/students/{uuid}/attendance/{today_date}")
-        attendance_ref.set({module_id: f"{module_name}: present"})  # Changed to set for clarity
+        attendance_ref.set({module_id: f"{module_name}: present"})
         print(f"Marked student {uuid} as present for {module_name} ({module_id}) on {today_date}")
     else:
         print(f"Module ID {module_id} not found.")
 
 
-
 def calculate_and_update_total_students_present(today_date):
     modules_ref = db.reference("/modules")
     all_modules = modules_ref.get()
-    # Mapping module names to IDs for the update operation
     name_to_id = {info.get("name"): mid for mid, info in all_modules.items()}
     total_present_per_name = {info.get("name"): 0 for mid, info in all_modules.items()}
 
@@ -93,27 +87,24 @@ def calculate_and_update_total_students_present(today_date):
         attendance = student_info.get("attendance", {})
         attendance_record = attendance.get(today_date)
 
-        # Check if attendance_record is a dictionary (new format)
-        if isinstance(attendance_record, dict):
-            for module_id, status_str in attendance_record.items():
-                module_name, status = status_str.split(": ")
+        if attendance_record:
+            if isinstance(attendance_record, dict):
+                for module_id, status_str in attendance_record.items():
+                    if ":" in status_str:
+                        module_name, status = status_str.split(": ")
+                        if status.strip() == "present" and module_name in total_present_per_name:
+                            total_present_per_name[module_name] += 1
+            elif ":" in attendance_record:
+                module_name, status = attendance_record.split(": ")
                 if status.strip() == "present" and module_name in total_present_per_name:
                     total_present_per_name[module_name] += 1
-        # Handle the string format (old format)
-        elif isinstance(attendance_record, str):
-            module_name, status = attendance_record.split(": ")
-            if status.strip() == "present" and module_name in total_present_per_name:
-                total_present_per_name[module_name] += 1
 
-    # Update the totalStudentsPresent for each module by ID
     for module_name, total_present in total_present_per_name.items():
         module_id = name_to_id.get(module_name)
         if module_id:
             module_date_ref = db.reference(f"/modules/{module_id}/{today_date}")
             module_date_ref.update({"totalStudentsPresent": total_present})
             print(f"Updated {module_name} ({module_id}) with totalStudentsPresent: {total_present} on {today_date}")
-
-
 
 
 def get_total_students_per_year():
@@ -149,11 +140,11 @@ def check_and_mark_attendance():
             student_ref = db.reference(f"/students/{uuid}")
             student_info = student_ref.get()
             student_year = student_info.get('courseYear')
-            module_id, attendance_time, class_end_time = get_current_class_and_end_time(student_year)  # Adjusted variable name
-            if module_id:  # Adjusted condition
+            module_id, attendance_time, class_end_time = get_current_class_and_end_time(student_year)
+            if module_id:
                 min_duration = datetime.timedelta(minutes=attendance_time)
                 if now - connected_since >= min_duration:
-                    mark_student_present(uuid, module_id)  # Correct usage of module_id
+                    mark_student_present(uuid, module_id)
                     device_connection_times[device_name] = now
 
 
@@ -165,7 +156,7 @@ def main():
         check_and_mark_attendance()
         calculate_and_update_total_students_present(today_date)
         update_module_student_totals(today_date)
-        time.sleep(60)  # Check every minute
+        time.sleep(60)  
 
 if __name__ == "__main__":
     main()
